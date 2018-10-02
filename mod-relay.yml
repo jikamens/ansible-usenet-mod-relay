@@ -124,7 +124,7 @@
   - lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^mydestination\s*='
-      line: 'mydestination = $myhostname, localhost.$mydomain, localhost, moderators.isc.org'
+      line: 'mydestination = $myhostname, localhost.$mydomain, localhost, moderators.isc.org, moderators.uu.net'
     register: mydestination
 
   - lineinfile:
