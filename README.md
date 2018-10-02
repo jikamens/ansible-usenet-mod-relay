@@ -54,6 +54,9 @@ Before using the files in this directory, you need:
   of the servers, so the more servers there are, the less bandwidth
   each uses)
 
+* SSH login access to the root account on your host (i.e., put your
+  public key in /root/.ssh/authorized_keys)
+
 Assumptions
 -----------
 
