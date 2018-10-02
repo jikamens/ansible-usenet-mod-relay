@@ -1,0 +1,327 @@
+---
+- hosts: mod-relays
+  tasks:
+  - user: name=mtm password_lock=yes
+
+  - file: dest=/home/mtm/bin state=directory
+
+  - copy: src=mtm.sh dest=/home/mtm/bin/mtm.sh mode=0755
+
+  - copy:
+      dest: /home/mtm/.procmailrc
+      content: |
+        :0 HB
+        * X-BeenThere: mtm@{{inventory_hostname}}
+        /dev/null
+
+        :0 w
+        |$HOME/bin/mtm.sh
+
+        :0 w
+        |mail -s 'mtm message' root
+
+  - hostname: name='{{inventory_hostname}}'
+
+  - debconf:
+      name: postfix
+      question: postfix/main_mailer_type
+      value: 'Internet Site'
+      vtype: select
+
+  - debconf:
+      name: postfix
+      question: postfix/mailname
+      value: '{{inventory_hostname}}'
+      vtype: string
+
+  - apt: name={{item}}
+    with_items:
+      - python
+      - postfix
+      - procmail
+      - fail2ban
+      - mailutils
+      - sed
+      - dos2unix
+      - grep
+      - coreutils
+      - diffutils
+      - emacs
+      - logwatch
+      - apticron
+      - ufw
+      - mlocate
+
+  - file: name=/etc/cron.daily/mlocate mode=0755
+
+  - user: name=modupdate password_lock=yes
+
+  - name: install /home/modupdate/.procmailrc
+    copy:
+      dest: /home/modupdate/.procmailrc
+      content: |
+        LOGFILE=$HOME/procmail.log
+        VERBOSE=on
+
+        :0 w
+        * From: .*moderators-update@lists\.eyrie\.org
+        * Subject: Update to news moderated group aliases
+        |$HOME/bin/modupdate.sh;
+
+        :0
+        * Subject: Diff of updated moderated newsgroup aliases
+        /dev/null
+
+        :0 w
+        |mail -s 'modupdate message' root
+
+  - file: dest=/home/modupdate/bin state=directory
+
+  - copy:
+      src: modupdate.sh
+      dest: /home/modupdate/bin/modupdate.sh
+      mode: 0755
+
+  - file:
+      dest: /home/modupdate/aliases
+      owner: modupdate
+      group: modupdate
+      state: directory
+
+  - copy:
+      src: aliases
+      dest: /home/modupdate/aliases/aliases
+      owner: modupdate
+      group: modupdate
+      mode: 0644
+      force: no
+    register: aliases_changed
+
+  - command: /usr/sbin/postalias /home/modupdate/aliases/aliases
+    when: aliases_changed.changed
+
+  - lineinfile:
+      dest: /etc/aliases
+      line: 'root: {{root_email_address}}'
+    when: root_email_address is defined
+    register: root_alias
+
+  - command: newaliases
+    when: root_alias.changed
+ 
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^alias_maps\s*='
+      line: 'alias_maps = hash:/etc/aliases hash:/home/modupdate/aliases/aliases'
+    register: alias_maps
+
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^myhostname\s*='
+      line: 'myhostname = {{inventory_hostname}}'
+    register: myhostname
+
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^mydestination\s*='
+      line: 'mydestination = $myhostname, localhost.$mydomain, localhost, moderators.isc.org'
+    register: mydestination
+
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^mailbox_command\s*='
+      line: 'mailbox_command = /usr/bin/procmail -a "$EXTENSION"'
+    register: mailbox_command
+
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^smtpd_recipient_restrictions\s*='
+      line: 'smtpd_recipient_restrictions = permit_mynetworks, reject_rbl_client zen.spamhaus.org, permit_mx_backup, reject_unauth_destination'
+    register: smtpd_recipient_restrictions
+
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^compatibility_level\s*='
+      line: 'compatibility_level = 2'
+    register: compatibility_level
+
+  - service: name=postfix enabled=yes
+
+  - service: name=postfix state=restarted
+    when: myhostname.changed or mydestination.changed or
+          mailbox_command.changed or smtpd_recipient_restrictions.changed or
+          compatibility_level.changed
+
+  - copy:
+      dest: /etc/cron.hourly/snitch
+      mode: 0755
+      content: |
+        #!/bin/bash -e
+        
+        touch /root/filesystem-is-ok
+        rm /root/filesystem-is-ok
+        sleep 1 | telnet localhost 25 2>/dev/null | grep -q -s Postfix
+        curl {{snitch_url}} &> /dev/null
+    when: snitch_url is defined
+
+  - ini_file:
+      dest: /etc/fail2ban/jail.local
+      create: yes
+      section: DEFAULT
+      option: backend
+      value: polling
+
+  - ini_file:
+      dest: /etc/fail2ban/jail.local
+      create: yes
+      section: postfix
+      option: enabled
+      value: true
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/secure.conf
+      create: yes
+      line: '*Remove = New seat seat[0-9]+\.$'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/secure.conf
+      line: '*Remove = Watching system buttons on /dev/input'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/rsyslogd.conf
+      create: yes
+      line: "*OnlyService = rsyslogd"
+      insertbefore: '\*Remove'
+      firstmatch: yes
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/rsyslogd.conf
+      line: "*Remove = rsyslogd.s (user|group)id changed to"
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/rsyslogd.conf
+      line: "*Remove = : Acquired UNIX socket"
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/rsyslogd.conf
+      line: "*Remove = exiting on signal 15"
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/postfix.conf
+      create: yes
+      line: '*Remove = lost connection .* from unknown\[unknown\]'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/postfix.conf
+      line: '*Remove = synacor.*Blacklisted by Internal Reputation Service'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/postfix.conf
+      line: '*Remove = netidentity.*blocked using urbl\.hostedemail\.com'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/postfix.conf
+      line: '*Remove = magellanhealth.*poor reputation'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/postfix.conf
+      line: '*Remove = improper command pipelining'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      create: yes
+      line: "*OnlyService = sshd"
+      insertbefore: '\*Remove'
+      firstmatch: yes
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Exiting on signal 15'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Server listening on .* port {{relay_ssh_port}}'
+    when: relay_ssh_port is defined
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Accepted.*xtK5LjLojcccD9XfFDng6QNPWijHnA8VGyeZxQPwCMo'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: "*Remove = session (opened|closed) for user root"
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Failed password for'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = check pass; user unknown'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = authentication failure'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Invalid user'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Did not receive identification string'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Bad protocol version identification'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Connection (reset|closed) by .*preauth'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Received disconnect from'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Disconnected from'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = ignoring max retries'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = maximum authentication attempts exceeded'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Received signal 15; terminating'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Unable to negotiate with'
+
+  - lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^Port\s+'
+      line: 'Port {{relay_ssh_port}}'
+    register: sshd_port
+    when: relay_ssh_port is defined
+
+  - lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^PermitRootLogin\s+'
+      line: 'PermitRootLogin prohibit-password'
+    register: sshd_root_login
+
+  - service: name=sshd state=reloaded
+    when: sshd_port.changed or sshd_root_login.changed
+
+  - ufw: state=enabled logging=off
+
+  - ufw: rule=allow port=smtp
+
+  - ufw: rule=allow port={{relay_ssh_port}}
+    when: relay_ssh_port is defined
