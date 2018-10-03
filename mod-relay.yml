@@ -108,7 +108,7 @@
 
   - command: newaliases
     when: root_alias.changed
- 
+
   - lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^alias_maps\s*='
@@ -157,7 +157,7 @@
       mode: 0755
       content: |
         #!/bin/bash -e
-        
+
         touch /root/filesystem-is-ok
         rm /root/filesystem-is-ok
         sleep 1 | telnet localhost 25 2>/dev/null | grep -q -s Postfix
@@ -264,27 +264,27 @@
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Failed password for'
-      
+
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = check pass; user unknown'
-      
+
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = authentication failure'
-      
+
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Invalid user'
-      
+
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Did not receive identification string'
-      
+
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Bad protocol version identification'
-      
+
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Connection (reset|closed) by .*preauth'
