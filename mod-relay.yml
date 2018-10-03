@@ -62,6 +62,22 @@
       - perl-TimeDate
     when: ansible_distribution == 'Fedora'
 
+  - command: getenforce
+    register: getenforce
+    failed_when: false
+    changed_when: false
+
+  - block:
+    # Required by Ansible when selinux is being enforced
+    - apt: name=python-selinux
+      when: ansible_distribution=='Ubuntu'
+    - dnf: name={{item}}
+      with_items:
+      - python2-libselinux
+      - python2-policycoreutils
+      when: ansible_distribution == 'Fedora'
+    when: '"Enforcing" in getenforce.stdout'
+
   - block:
     - ini_file:
         dest: /etc/yum/yum-updatesd.conf
@@ -354,11 +370,18 @@
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Unable to negotiate with'
 
-  - lineinfile:
-      dest: /etc/ssh/sshd_config
-      regexp: '^Port\s+'
-      line: 'Port {{relay_ssh_port}}'
-    register: sshd_port
+  - block:
+    - lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: '^Port\s+'
+        line: 'Port {{relay_ssh_port}}'
+      register: sshd_port
+    - seport:
+        ports: '{{relay_ssh_port}}'
+        proto: tcp
+        setype: ssh_port_t
+        state: present
+      when: '"Enforcing" in getenforce.stdout'
     when: relay_ssh_port is defined
 
   - lineinfile:
