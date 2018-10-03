@@ -44,6 +44,7 @@
 
   - apt: name={{item}}
     with_items:
+      # For Ansible
       - python
       - mailutils
       - apticron
