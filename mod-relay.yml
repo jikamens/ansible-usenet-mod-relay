@@ -337,3 +337,5 @@
 
   - ufw: rule=allow port={{relay_ssh_port}}
     when: relay_ssh_port is defined
+
+- import_playbook: dnsbl-check/dnsbl-check.yml

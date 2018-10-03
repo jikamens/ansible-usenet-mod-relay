@@ -80,8 +80,14 @@ applies even more so.
 Configuration
 -------------
 
-The playbook uses the following configuration files which should be
+The playbook uses the following configuration settings which should be
 set as desired in your inventory:
+
+* List your relay host in the "mod-relays" group in your inventory.
+
+* If you want to automatically run a daily script to check if your
+  host is listed in any DNS blocklists (as discussed below), also add
+  your relay host to the group "dnsbl-check-hosts" in your inventory.
 
 * inventory\_hostname -- The playbook uses this standard Ansible to
   configure various settings on the host, *including changing its host
@@ -162,15 +168,16 @@ Ongoing maintenance
 
 You need to check the spam DNSBLs on a regular basis to make sure you
 haven't gotten listed on one, and if you do, try to figure out why and
-get delisted. There are various web sites that will do this for you,
-e.g., [https://www.dnsbl.info/](https://www.dnsbl.info/),
+get delisted. You can use the script included here to do this, by
+adding your host to the "dnsbl-check-hosts" group in your Ansible
+inventory before running the playbook. Alternatively, there are
+various web sites that will do this for you, e.g.,
+[https://www.dnsbl.info/](https://www.dnsbl.info/),
 [https://mxtoolbox.com/blacklists.aspx](https://mxtoolbox.com/blacklists.aspx),
 [http://www.anti-abuse.org/multi-rbl-check/](http://www.anti-abuse.org/multi-rbl-check/),
 [http://dnsbllookup.com/](http://dnsbllookup.com/). Some of them may
 even allow you to configure them to do it automatically on a regular
-basis and email you the results. I use a script for this that I wrote
-myself, which at some point if I get around to it I may integrate into
-this playbook.
+basis and email you the results.
 
 You should quickly review the daily logwatch email and deal with
 anything that looks crazy.

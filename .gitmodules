@@ -1,0 +1,3 @@
+[submodule "dnsbl-check"]
+	path = dnsbl-check
+	url = git@github.com:jikamens/ansible-dnsbl-check
