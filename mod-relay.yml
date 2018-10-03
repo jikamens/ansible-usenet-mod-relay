@@ -51,6 +51,8 @@
       - apticron
       - ufw
       - mlocate
+      # For relay-bounce-monitor.pl
+      - libtimedate-perl
 
   - file: name=/etc/cron.daily/mlocate mode=0755
 
@@ -163,6 +165,16 @@
         sleep 1 | telnet localhost 25 2>/dev/null | grep -q -s Postfix
         curl {{snitch_url}} &> /dev/null
     when: snitch_url is defined
+
+  - copy:
+      dest: /usr/local/bin/relay-bounce-monitor.pl
+      src: relay-bounce-monitor.pl
+      mode: 0755
+
+  - file:
+      dest: /etc/cron.daily/relay-bounce-monitor
+      state: link
+      src: /usr/local/bin/relay-bounce-monitor.pl
 
   - ini_file:
       dest: /etc/fail2ban/jail.local
