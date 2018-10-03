@@ -1,6 +1,79 @@
 ---
 - hosts: mod-relays
+  vars:
+    # Packages to install on both Ubuntu and Fedora
+    common_packages:
+    - perl
+    - postfix
+    - procmail
+    - fail2ban
+    - sed
+    - dos2unix
+    - grep
+    - coreutils
+    - diffutils
+    - logwatch
+    - ufw
   tasks:
+  - hostname: name='{{inventory_hostname}}'
+
+  - debconf:
+      name: postfix
+      question: postfix/main_mailer_type
+      value: 'Internet Site'
+      vtype: select
+    when: ansible_distribution == 'Ubuntu'
+
+  - debconf:
+      name: postfix
+      question: postfix/mailname
+      value: '{{inventory_hostname}}'
+      vtype: string
+    when: ansible_distribution == 'Ubuntu'
+
+  # We use separate dnf and apt tasks rather than one package task because dnf
+  # and apt are both much faster than package.
+
+  - dnf: name={{item}}
+    with_items: '{{common_packages}}'
+    when: ansible_distribution == 'Fedora'
+
+  - apt: name={{item}}
+    with_items: '{{common_packages}}'
+    when: ansible_distribution == 'Ubuntu'
+
+  - apt: name={{item}}
+    with_items:
+      - python
+      - mailutils
+      - apticron
+      # For relay-bounce-monitor.pl
+      - libtimedate-perl
+    when: ansible_distribution == 'Ubuntu'
+
+  - dnf: name={{item}}
+    with_items:
+      # For Ansible
+      - python2
+      - mailx
+      - yum-updatesd
+      # For relay-bounce-monitor.pl
+      - perl-TimeDate
+    when: ansible_distribution == 'Fedora'
+
+  - block:
+    - ini_file:
+        dest: /etc/yum/yum-updatesd.conf
+        section: main
+        option: run_interval
+        value: 86400  # daily
+    - ini_file:
+        dest: /etc/yum/yum-updatesd.conf
+        section: main
+        option: emit_via
+        value: email
+    when: ansible_distribution == 'Fedora'
+
   - user: name=mtm password_lock=yes
 
   - file: dest=/home/mtm/bin state=directory
@@ -19,40 +92,6 @@
 
         :0 w
         |mail -s 'mtm message' root
-
-  - hostname: name='{{inventory_hostname}}'
-
-  - debconf:
-      name: postfix
-      question: postfix/main_mailer_type
-      value: 'Internet Site'
-      vtype: select
-
-  - debconf:
-      name: postfix
-      question: postfix/mailname
-      value: '{{inventory_hostname}}'
-      vtype: string
-
-  - apt: name={{item}}
-    with_items:
-      - python
-      - perl
-      - postfix
-      - procmail
-      - fail2ban
-      - mailutils
-      - sed
-      - dos2unix
-      - grep
-      - coreutils
-      - diffutils
-      - logwatch
-      - apticron
-      - ufw
-      # For relay-bounce-monitor.pl
-      - libtimedate-perl
-
 
   - user: name=modupdate password_lock=yes
 
