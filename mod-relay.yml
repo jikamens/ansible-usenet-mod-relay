@@ -47,15 +47,12 @@
       - grep
       - coreutils
       - diffutils
-      - emacs
       - logwatch
       - apticron
       - ufw
-      - mlocate
       # For relay-bounce-monitor.pl
       - libtimedate-perl
 
-  - file: name=/etc/cron.daily/mlocate mode=0755
 
   - user: name=modupdate password_lock=yes
 
