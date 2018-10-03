@@ -103,6 +103,7 @@
   - lineinfile:
       dest: /etc/aliases
       line: 'root: {{root_email_address}}'
+      regexp: '^\s*root\s*:'
     when: root_email_address is defined
     register: root_alias
 
