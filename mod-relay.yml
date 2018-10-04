@@ -1,19 +1,5 @@
 ---
 - hosts: mod-relays
-  vars:
-    # Packages to install on both Ubuntu and Fedora
-    common_packages:
-    - perl
-    - postfix
-    - procmail
-    - fail2ban
-    - sed
-    - dos2unix
-    - grep
-    - coreutils
-    - diffutils
-    - logwatch
-    - ufw
   tasks:
   - hostname: name='{{inventory_hostname}}'
 
@@ -31,19 +17,22 @@
       vtype: string
     when: ansible_distribution == 'Ubuntu'
 
-  # We use separate dnf and apt tasks rather than one package task because dnf
-  # and apt are both much faster than package.
+  - package:
+      name:
+      - perl
+      - postfix
+      - procmail
+      - fail2ban
+      - sed
+      - dos2unix
+      - grep
+      - coreutils
+      - diffutils
+      - logwatch
+      - ufw
 
-  - dnf: name={{item}}
-    with_items: '{{common_packages}}'
-    when: ansible_distribution == 'Fedora'
-
-  - apt: name={{item}}
-    with_items: '{{common_packages}}'
-    when: ansible_distribution == 'Ubuntu'
-
-  - apt: name={{item}}
-    with_items:
+  - apt:
+      name:
       # For Ansible
       - python
       - mailutils
@@ -52,8 +41,8 @@
       - libtimedate-perl
     when: ansible_distribution == 'Ubuntu'
 
-  - dnf: name={{item}}
-    with_items:
+  - dnf:
+      name:
       # For Ansible
       - python2
       - mailx
@@ -71,10 +60,10 @@
     # Required by Ansible when selinux is being enforced
     - apt: name=python-selinux
       when: ansible_distribution=='Ubuntu'
-    - dnf: name={{item}}
-      with_items:
-      - python2-libselinux
-      - python2-policycoreutils
+    - dnf:
+        name:
+        - python2-libselinux
+        - python2-policycoreutils
       when: ansible_distribution == 'Fedora'
     when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
 
