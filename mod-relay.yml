@@ -76,7 +76,7 @@
       - python2-libselinux
       - python2-policycoreutils
       when: ansible_distribution == 'Fedora'
-    when: '"Enforcing" in getenforce.stdout'
+    when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
 
   - block:
     - ini_file:
@@ -381,7 +381,7 @@
         proto: tcp
         setype: ssh_port_t
         state: present
-      when: '"Enforcing" in getenforce.stdout'
+      when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
     when: relay_ssh_port is defined
 
   - lineinfile:
