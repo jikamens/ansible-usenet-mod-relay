@@ -46,9 +46,8 @@ if ($last_report) {
     $last_report = str2time($last_report);
 }
 
-open(LOG, "-|", "(zcat \$(ls -r /var/log/mail.log.*.gz); " .
-     "cat /var/log/mail.log.1 /var/log/mail.log)") or die;
-while (<LOG>) {
+@ARGV = &find_log_files();
+while (<>) {
     next if (! /orig_to=<([^>]+-[^>]+)\@moderators/);
     my $address = $1;
     my $stamp = &parse_syslog_time($_);
@@ -87,7 +86,6 @@ while (<LOG>) {
 	@{$logs{$address}} = @{$logs{$address}}[0..$log_limit-1];
     }
 }
-close(LOG);
 
 if (! $last_report) {
     (open(TIME, "<", $time_file) and ($last_report = <TIME>) and
@@ -115,7 +113,7 @@ if (@new_addresses) {
     }
 }
 
-if (! $preserve) {
+if ($latest_timestamp and ! $preserve) {
     die("$whoami: Failed to save report time to $time_file: $!\n")
 	if (! (open(TIME, ">". $time_file) and
 	       print(TIME "$latest_timestamp\n")
@@ -144,3 +142,26 @@ sub parse_syslog_time {
     }
     return $stamp;
 }
+
+sub find_log_files {
+    my(@date_files) = glob("/var/log/maillog-2[0-9]*");
+    my(@numbered_files) = (glob("/var/log/mail.log.[0-9]"),
+			   glob("/var/log/mail.log.[0-9].*"));
+    my(@current_files) = grep(-f $_, "/var/log/maillog", "/var/log/mail.log");
+    my(@files);
+    foreach my $file (@date_files, reverse sort @numbered_files,
+		      @current_files) {
+	if ($file =~ /\.gz$/) {
+	    push(@files, "gunzip < $file|");
+	}
+	elsif ($file =~ /\.bz2$/) {
+	    push(@files, "bunzip2 < $file|");
+	}
+	else {
+	    push(@files, $file);
+	}
+    }
+    return(@files);
+}
+
+    
