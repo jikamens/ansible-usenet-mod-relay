@@ -232,6 +232,7 @@
       section: DEFAULT
       option: backend
       value: polling
+    register: fail2ban_backend
 
   - ini_file:
       dest: /etc/fail2ban/jail.local
@@ -239,6 +240,13 @@
       section: postfix
       option: enabled
       value: true
+    register: fail2ban_postfix_jail
+
+  - service: name=fail2ban enabled=yes state=restarted
+    when: fail2ban_backend.changed or fail2ban_postfix_jail.changed
+
+  - service: name=fail2ban enabled=yes state=started
+    when: not (fail2ban_backend.changed or fail2ban_postfix_jail.changed)
 
   - lineinfile:
       dest: /etc/logwatch/conf/services/secure.conf
