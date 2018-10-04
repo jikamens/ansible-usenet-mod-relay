@@ -191,12 +191,18 @@
       line: 'compatibility_level = 2'
     register: compatibility_level
 
+  - lineinfile:
+      dest: /etc/postfix/main.cf
+      regexp: '^inet_interfaces\s*='
+      line: 'inet_interfaces = all'
+    register: inet_interfaces
+
   - service: name=postfix enabled=yes
 
   - service: name=postfix state=restarted
     when: myhostname.changed or mydestination.changed or
           mailbox_command.changed or smtpd_recipient_restrictions.changed or
-          compatibility_level.changed
+          compatibility_level.changed or inet_interfaces.changed
 
   - copy:
       dest: /etc/cron.hourly/snitch
