@@ -310,8 +310,9 @@
 
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
-      line: '*Remove = Server listening on .* port {{relay_ssh_port}}'
-    when: relay_ssh_port is defined
+      line: '*Remove = Server listening on .* port {{item}}'
+    with_items: '{{relay_ssh_ports}}'
+    when: relay_ssh_ports is defined
 
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
@@ -376,16 +377,18 @@
   - block:
     - lineinfile:
         dest: /etc/ssh/sshd_config
-        regexp: '^Port\s+'
-        line: 'Port {{relay_ssh_port}}'
+        regexp: '^Port\s+{{item}}\b'
+        line: 'Port {{item}}'
+      with_items: '{{relay_ssh_ports}}'
       register: sshd_port
     - seport:
-        ports: '{{relay_ssh_port}}'
+        ports: '{{item}}'
         proto: tcp
         setype: ssh_port_t
         state: present
+      with_items: '{{relay_ssh_ports}}'
       when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
-    when: relay_ssh_port is defined
+    when: relay_ssh_ports is defined
 
   - lineinfile:
       dest: /etc/ssh/sshd_config
@@ -404,7 +407,8 @@
 
   - ufw: rule=allow port=smtp
 
-  - ufw: rule=allow port={{relay_ssh_port}}
-    when: relay_ssh_port is defined
+  - ufw: rule=allow port={{item}}
+    with_items: '{{relay_ssh_ports}}'
+    when: relay_ssh_ports is defined
 
 - import_playbook: dnsbl-check/dnsbl-check.yml
