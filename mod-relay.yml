@@ -390,6 +390,10 @@
 
   - ufw: state=enabled logging=off
 
+  # On Ubuntu, `ufw enable` enables the systemd service, but on Fedora (at
+  # least) it does not, so enable it explicitly just to be safe.
+  - service: name=ufw enabled=yes
+
   - ufw: rule=allow port=smtp
 
   - ufw: rule=allow port={{relay_ssh_port}}
