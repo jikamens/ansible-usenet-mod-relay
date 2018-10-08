@@ -374,6 +374,31 @@
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Unable to negotiate with'
 
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Change of username or service not allowed'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/audit.conf
+      line: '*OnlyService = (kernel:( \[[ 0-9\.]+\])?)?\s*(type=[0-9]+\s*)?audit.*'
+      create: yes
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/audit.conf
+      line: '*Remove = res=success'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/audit.conf
+      line: '*Remove = op=login acct=\"(\(unknown\)|bin|root|ftp|operator)\" .*res=failed'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/audit.conf
+      line: '*Remove = op=PAM:bad_ident .*acct=\"\?\" .*res=failed'
+      
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/audit.conf
+      line: '*Remove = op=maxtries exceeded'
+
   - block:
     - lineinfile:
         dest: /etc/ssh/sshd_config
