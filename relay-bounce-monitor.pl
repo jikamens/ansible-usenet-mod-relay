@@ -54,7 +54,9 @@ while (<>) {
     next if (! $stamp);
     $latest_timestamp = $stamp;
     if (/status=sent/) {
-	$successes{$address}++;
+        if (! /<mod-bounce\./) {
+            $successes{$address}++;
+        }
 	next;
     }
     $successes{$address} ||= 0;
