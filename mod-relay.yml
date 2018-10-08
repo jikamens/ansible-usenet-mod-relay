@@ -142,8 +142,74 @@
       force: no
     register: aliases_changed
 
+  - lineinfile:
+      dest: /home/modupdate/aliases/aliases
+      regexp: '^{{item}}:'
+      line: '{{item}}:	mod-bounce.no-mod-info@isc.org'
+    with_items:
+    - airnews-alt-announce
+    - alt-ammonia-refrigeration
+    - alt-bible-errancy
+    - alt-binaries-images-underwater-non-violent-moderated
+    - alt-binaries-nude-celebrities-male-moderated
+    - alt-binaries-pictures-erotica-black-male
+    - alt-binaries-pictures-erotica-black-male-moderated
+    - alt-binaries-pictures-erotica-cpath
+    - alt-binaries-pictures-erotica-gaymen-moderated
+    - alt-binaries-pictures-erotica-male-bodybuilder-moderated
+    - alt-binaries-pictures-erotica-male-burly
+    - alt-binaries-pictures-erotica-uniform-male-moderated
+    - alt-books-chesterton
+    - alt-business-multi-level-moderated
+    - alt-coven-moderated
+    - alt-crafts-candlemaking-soapmaking
+    - alt-culture-china
+    - alt-culture-macedonia-moderated
+    - alt-culture-taiwan
+    - alt-dur-general
+    - alt-games-down-economy
+    - alt-games-final-fantasy-moderated
+    - alt-government-ssdi-benefits-moderated
+    - alt-hackers-debate
+    - alt-hindu
+    - alt-language-balita-news
+    - alt-language-cebuano
+    - alt-language-cebunews
+    - alt-med-cfs
+    - alt-med-cfs-info
+    - alt-med-endometriosis
+    - alt-occult-kabbalah-golden-dawn
+    - alt-olympic-studies
+    - alt-religion-monica
+    - alt-rpg-chesley-trials
+    - alt-sex-drew-hamilton
+    - alt-sex-stories-gay-moderated
+    - alt-skinheads-moderated
+    - alt-support-adoption-advocacy
+    - alt-support-breast-implant-moderated
+    - alt-support-depression-manic-moderated
+    - alt-swingers-m
+    - alt-talk-bestiality
+    - alt-tv-red-dwarf-fans-only
+    - alt-tv-red-dwarf-moderated
+    - alt-tv-world-news-now-moderated
+    - alt-unix-geeks-moderated
+    - bit-listserv-blues-l
+    - comp-ai
+    - geometry-puzzles
+    - hamster-fr-annonces
+    - hamster-it-announce
+    - misc-test-moderated
+    - nz-politics-announce
+    - sci-physics-foundations
+    - soc-culture-galiza
+    - soc-culture-hawaii
+    - soc-religion-mormon
+    - soc-support-loneliness
+    register: aliases_fixes
+
   - command: /usr/sbin/postalias /home/modupdate/aliases/aliases
-    when: aliases_changed.changed
+    when: aliases_changed.changed or aliases_fixes.changed
 
   - lineinfile:
       dest: /etc/aliases
