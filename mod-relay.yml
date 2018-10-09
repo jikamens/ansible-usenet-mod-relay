@@ -142,12 +142,15 @@
       force: no
     register: aliases_changed
 
-  - lineinfile:
+  - name: disable bouncing aliases
+    lineinfile:
       dest: /home/modupdate/aliases/aliases
       regexp: '^{{item}}:'
       line: '{{item}}:	mod-bounce.no-mod-info@isc.org'
-    with_items:
-    - misc-activism-progressive
+    # List aliases here that are bouncing and haven't been updated in
+    # the master aliases list yet. When there aren't any pending
+    # updates, set this to [].
+    with_items: []
     register: aliases_fixes
 
   - command: /usr/sbin/postalias /home/modupdate/aliases/aliases
