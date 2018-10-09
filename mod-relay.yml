@@ -266,6 +266,14 @@
       line: '*Remove = Watching system buttons on /dev/input'
 
   - lineinfile:
+      dest: /etc/logwatch/conf/services/secure.conf
+      line: '*Remove = Cannot create session: Already running in a session'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/secure.conf
+      line: '*Remove = echo BECOME-SUCCESS-'
+
+  - lineinfile:
       dest: /etc/logwatch/conf/services/rsyslogd.conf
       create: yes
       line: "*OnlyService = rsyslogd"
@@ -387,6 +395,14 @@
       line: '*Remove = Change of username or service not allowed'
 
   - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = Accepted publickey for'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sshd.conf
+      line: '*Remove = pam_unix\(sshd:session\): session (opened|closed) for'
+
+  - lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*OnlyService = (kernel:( \[[ 0-9\.]+\])?)?\s*(type=[0-9]+\s*)?audit.*'
       create: yes
@@ -406,6 +422,23 @@
   - lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*Remove = op=maxtries exceeded'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/audit.conf
+      line: '*Remove = NETFILTER_CFG table=filter family=[0-9]+ entries=[0-9]+$'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sudo.conf
+      line: '*OnlyService = sudo'
+      create: yes
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sudo.conf
+      line: '*RemoveHeaders'
+
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/sudo.conf
+      line: '*Remove = Cannot create session: Already running in a session'
 
   - block:
     - lineinfile:
