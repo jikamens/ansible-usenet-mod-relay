@@ -19,10 +19,16 @@
 
   - package:
       name:
+      - firewalld
+      - fail2ban-firewalld
+      state: absent
+    when: ansible_distribution == 'Fedora'
+      
+  - package:
+      name:
       - perl
       - postfix
       - procmail
-      - fail2ban
       - sed
       - dos2unix
       - grep
@@ -33,6 +39,7 @@
 
   - apt:
       name:
+      - fail2ban
       # For Ansible
       - python
       - mailutils
@@ -43,6 +50,8 @@
 
   - dnf:
       name:
+      - fail2ban-server
+      - fail2ban-sendmail
       # For Ansible
       - python2
       - mailx
