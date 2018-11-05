@@ -1,0 +1,58 @@
+---
+- hosts: mod-relays
+  vars:
+    openarc_commitish: 355ee2a1ca85acccce494478991983b54f794f4e
+    version_file: /usr/local/share/doc/openarc/openarc.commitish
+  tasks:
+  - package:
+      name:
+      - autoconf
+      - autoconf-archive
+      - libtool
+      - pkg-config
+      - libbsd-dev
+      - libssl-dev
+      - libmilter-dev
+  - file:
+      path: /root/src
+      state: directory
+  - command: git clone https://github.com/trusteddomainproject/OpenARC
+    args:
+      chdir: /root/src
+      creates: /root/src/OpenARC/.git
+  - command: git rev-parse HEAD
+    args:
+      chdir: /root/src/OpenARC
+    changed_when: false
+    register: rev_parse
+  - command: git pull
+    args:
+      chdir: /root/src/OpenARC
+    when: 'openarc_commitish not in rev_parse.stdout'
+  - command: cat {{version_file}}
+    changed_when: false
+    failed_when: false
+    ignore_errors: true
+    register: version_file_contents
+  - block:
+    - command: autoreconf --install
+      args:
+        chdir: /root/src/OpenARC
+    - command: ./configure
+      args:
+        chdir: /root/src/OpenARC
+    - command: make clean
+      args:
+        chdir: /root/src/OpenARC
+    - command: make -j
+      args:
+        chdir: /root/src/OpenARC
+    - command: make install
+      args:
+        chdir: /root/src/OpenARC
+    - copy:
+        dest: '{{version_file}}'
+        content: |
+          {{rev_parse.stdout}}
+    when: rev_parse.stdout != version_file_contents.stdout
+
