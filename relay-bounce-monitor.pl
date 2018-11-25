@@ -67,7 +67,7 @@ while (<>) {
 	     spam\ score\ exceeded|cmuScsDiscardSpam|
 	     Message\ contained\ unsafe\ content|spam\ message\ rejected|
 	     This\ message\ was\ blocked\ because\ its\ content|
-             Domain\ Blacklist:\ DBL\ lookup/x);
+             Domain\ Blacklist:\ DBL\ lookup|message\ looks\ like\ spam/x);
     # I use this when looking for new permanent failure messages, but normally
     # it should be commented out because otherwise the script won't ever report
     # anything!
