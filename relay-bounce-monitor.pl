@@ -68,7 +68,8 @@ while (<>) {
 	     Message\ contained\ unsafe\ content|spam\ message\ rejected|
 	     This\ message\ was\ blocked\ because\ its\ content|
              Domain\ Blacklist:\ DBL\ lookup|message\ looks\ like\ spam|
-             is\ likely\ unsolicited\ mail|spam\ score\ too\ high/x);
+             is\ likely\ unsolicited\ mail|spam\ score\ too\ high|
+             banned\ sending\ IP/x);
     # I use this when looking for new permanent failure messages, but normally
     # it should be commented out because otherwise the script won't ever report
     # anything!
