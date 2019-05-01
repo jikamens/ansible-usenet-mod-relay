@@ -490,8 +490,18 @@
       line: 'PermitRootLogin prohibit-password'
     register: sshd_root_login
 
+  - lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^PasswordAuthentication\s+'
+      line: 'PasswordAuthentication no'
+    when: disable_sshd_password_authentication is defined and
+      disable_sshd_password_authentication
+    register: sshd_password_authentication
+    
   - service: name=sshd state=reloaded
-    when: sshd_port.changed or sshd_root_login.changed
+    when: sshd_port.changed or sshd_root_login.changed or
+      (sshd_password_authentication is defined and
+      sshd_password_authentication.changed)
 
   - ufw: state=enabled logging=off
 

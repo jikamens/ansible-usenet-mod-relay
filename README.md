@@ -118,6 +118,12 @@ set as desired in your inventory:
   reconfigures the SSH port you will want to edit your `~/.ssh/config`
   to specify the new port there for the host.
 
+* disable\_sshd\_password_authentication -- Set to true if you want the
+  playbook to disable sshd password authentication, i.e., only allow
+  public key authentication. This is *strongly encouraged* for good
+  security hygiene. Make sure you have public key ssh access
+  configured before you do this!
+
 Initial setup
 -------------
 
