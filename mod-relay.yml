@@ -366,17 +366,23 @@
       dest: /etc/logwatch/conf/services/sshd.conf
       line: "*Remove = session (opened|closed) for user root"
 
+  # It's safe to ignore these when we only allow public key authentication.
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Failed password for'
+    when: disable_sshd_password_authentication is defined and
+      disable_sshd_password_authentication
 
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = check pass; user unknown'
 
+  # It's safe to ignore these when we only allow public key authentication.
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = authentication failure'
+    when: disable_sshd_password_authentication is defined and
+      disable_sshd_password_authentication
 
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
@@ -425,6 +431,13 @@
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Accepted publickey for'
+
+  # It's safe to ignore these when we only allow public key authentication.
+  - lineinfile:
+      dest: /etc/logwatch/conf/services/pam_unix.conf
+      line: '*Remove = sshd:auth.*(user unknown|authentication failure)'
+    when: disable_sshd_password_authentication is defined and
+      disable_sshd_password_authentication
 
   - lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
