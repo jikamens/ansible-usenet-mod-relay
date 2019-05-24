@@ -46,7 +46,7 @@ Before using the files in this directory, you need:
   with the name "aliases" in this directory
 
 * an inventory file which lists your relay host name in the group
-  "mod-relays" 
+  "mod\_relays" 
 
 * enough network bandwidth (as a rough estimate, all of the relay
   servers together currently receive about 96MB per week and send
@@ -83,11 +83,11 @@ Configuration
 The playbook uses the following configuration settings which should be
 set as desired in your inventory:
 
-* List your relay host in the "mod-relays" group in your inventory.
+* List your relay host in the "mod\_relays" group in your inventory.
 
 * If you want to automatically run a daily script to check if your
   host is listed in any DNS blocklists (as discussed below), also add
-  your relay host to the group "dnsbl-check-hosts" in your inventory.
+  your relay host to the group "dnsbl\_check\_hosts" in your inventory.
 
 * inventory\_hostname -- The playbook uses this standard Ansible to
   configure various settings on the host, *including changing its host
@@ -175,7 +175,7 @@ Ongoing maintenance
 You need to check the spam DNSBLs on a regular basis to make sure you
 haven't gotten listed on one, and if you do, try to figure out why and
 get delisted. You can use the script included here to do this, by
-adding your host to the "dnsbl-check-hosts" group in your Ansible
+adding your host to the "dnsbl\_check\_hosts" group in your Ansible
 inventory before running the playbook. Alternatively, there are
 various web sites that will do this for you, e.g.,
 [https://www.dnsbl.info/](https://www.dnsbl.info/),

@@ -1,5 +1,5 @@
 ---
-- hosts: mod-relays
+- hosts: mod_relays
   tasks:
   - hostname: name='{{inventory_hostname}}'
 
