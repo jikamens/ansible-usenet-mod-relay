@@ -71,7 +71,11 @@ while (<>) {
              is\ likely\ unsolicited\ mail|spam\ score\ too\ high|
              banned\ sending\ IP|Invalid\ address\ in\ message\ header|
              8-bit\ characters\ not\ allowed\ in\ header\ addresses|
-             Message\ contained\ spam\ content|very\ low\ reputation/x);
+             Message\ contained\ spam\ content|very\ low\ reputation|
+             Reject\ for\ policy\ reason\ virus\ found|
+             email\ rejected\ from\ |This\ message\ contains\ a\ virus|
+             Domain\ \S+\ does\ not\ accept\ mail\ \(nullMX\)|
+             Spam\ suspected\ --\ message\ rejected/x);
     # I use this when looking for new permanent failure messages, but normally
     # it should be commented out because otherwise the script won't ever report
     # anything!
