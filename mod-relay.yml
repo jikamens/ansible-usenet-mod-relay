@@ -41,7 +41,7 @@
       name:
       - fail2ban
       # For Ansible
-      - python
+      - python3
       - mailutils
       - apticron
       # For relay-bounce-monitor.pl
