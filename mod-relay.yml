@@ -89,15 +89,8 @@
         value: email
     when: ansible_distribution == 'Fedora'
 
-  # https://github.com/ansible/ansible/issues/43670
-  - shell: grep -q -s '^mtm:!:' /etc/shadow
-    ignore_errors: true
-    failed_when: false
-    changed_when: false
-    register: mtm_locked
-
-  - user: name=mtm password_lock=yes
-    when: mtm_locked.rc != 0
+  - name: lock mtm account
+    user: name=mtm password_lock=yes
 
   - file: dest=/home/mtm/bin state=directory
 
@@ -116,15 +109,8 @@
         :0 w
         |mail -s 'mtm message' root
 
-  # https://github.com/ansible/ansible/issues/43670
-  - shell: grep -q -s '^modupdate:!:' /etc/shadow
-    ignore_errors: true
-    failed_when: false
-    changed_when: false
-    register: modupdate_locked
-
-  - user: name=modupdate password_lock=yes
-    when: modupdate_locked.rc != 0
+  - name: lock modupdate account
+    user: name=modupdate password_lock=yes
 
   - name: install /home/modupdate/.procmailrc
     copy:
