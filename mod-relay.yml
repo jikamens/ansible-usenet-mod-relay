@@ -1,30 +1,35 @@
 ---
 - hosts: mod_relays
   tasks:
-  - hostname: name='{{inventory_hostname}}'
+  - name: set hostname
+    hostname: name='{{inventory_hostname}}'
 
-  - debconf:
+  - name: set postfix/main_mailer_type
+    debconf:
       name: postfix
       question: postfix/main_mailer_type
       value: 'Internet Site'
       vtype: select
     when: ansible_distribution == 'Ubuntu'
 
-  - debconf:
+  - name: set postfix/mailname
+    debconf:
       name: postfix
       question: postfix/mailname
       value: '{{inventory_hostname}}'
       vtype: string
     when: ansible_distribution == 'Ubuntu'
 
-  - package:
+  - name: remove firewalld and fail2ban-firewalld
+    package:
       name:
       - firewalld
       - fail2ban-firewalld
       state: absent
     when: ansible_distribution == 'Fedora'
       
-  - package:
+  - name: install packages needed for mod-relay
+    package:
       name:
       - perl
       - postfix
@@ -37,7 +42,8 @@
       - logwatch
       - ufw
 
-  - apt:
+  - name: install Ubuntu-specific packages for mod-relay
+    apt:
       name:
       - fail2ban
       # For Ansible
@@ -48,7 +54,8 @@
       - libtimedate-perl
     when: ansible_distribution == 'Ubuntu'
 
-  - dnf:
+  - name: install Fedora-specific packages for mod-relay
+    dnf:
       name:
       - fail2ban-server
       - fail2ban-sendmail
@@ -60,7 +67,8 @@
       - perl-TimeDate
     when: ansible_distribution == 'Fedora'
 
-  - command: getenforce
+  - name: check if SELinux is enforced
+    command: getenforce
     register: getenforce
     failed_when: false
     changed_when: false
@@ -92,11 +100,14 @@
   - name: lock mtm account
     user: name=mtm password_lock=yes
 
-  - file: dest=/home/mtm/bin state=directory
+  - name: create /home/mtm/bin
+    file: dest=/home/mtm/bin state=directory
 
-  - copy: src=mtm.sh dest=/home/mtm/bin/mtm.sh mode=0755
+  - name: install mtm auto-response script
+    copy: src=mtm.sh dest=/home/mtm/bin/mtm.sh mode=0755
 
-  - copy:
+  - name: create /home/mtm/.procmailrc
+    copy:
       dest: /home/mtm/.procmailrc
       content: |
         :0 HB
@@ -131,20 +142,24 @@
         :0 w
         |mail -s 'modupdate message' root
 
-  - file: dest=/home/modupdate/bin state=directory
+  - name: create /home/modupdate/bin
+    file: dest=/home/modupdate/bin state=directory
 
-  - copy:
+  - name: install modupdate.sh script
+    copy:
       src: modupdate.sh
       dest: /home/modupdate/bin/modupdate.sh
       mode: 0755
 
-  - file:
+  - name: create /home/modupdate/aliases
+    file:
       dest: /home/modupdate/aliases
       owner: modupdate
       group: modupdate
       state: directory
 
-  - copy:
+  - name: install /home/modupdate/aliases/aliases
+    copy:
       src: aliases
       dest: /home/modupdate/aliases/aliases
       owner: modupdate
@@ -164,69 +179,82 @@
     with_items: []
     register: aliases_fixes
 
-  - command: /usr/sbin/postalias /home/modupdate/aliases/aliases
+  - name: rebuild postmap aliases map
+    command: /usr/sbin/postalias /home/modupdate/aliases/aliases
     when: aliases_changed.changed or aliases_fixes.changed
 
-  - lineinfile:
+  - name: configure root alias
+    lineinfile:
       dest: /etc/aliases
       line: 'root: {{root_email_address}}'
       regexp: '^\s*root\s*:'
     when: root_email_address is defined
     register: root_alias
 
-  - command: newaliases
+  - name: run newaliases
+    command: newaliases
     when: root_alias.changed
 
-  - lineinfile:
+  - name: set alias_maps in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^alias_maps\s*='
       line: 'alias_maps = hash:/etc/aliases hash:/home/modupdate/aliases/aliases'
     register: alias_maps
 
-  - lineinfile:
+  - name: set myhostname in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^myhostname\s*='
       line: 'myhostname = {{inventory_hostname}}'
     register: myhostname
 
-  - lineinfile:
+  - name: set mydestination in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^mydestination\s*='
       line: 'mydestination = $myhostname, localhost.$mydomain, localhost, moderators.isc.org, moderators.uu.net'
     register: mydestination
 
-  - lineinfile:
+  - name: set mailbox_command in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^mailbox_command\s*='
       line: 'mailbox_command = /usr/bin/procmail -a "$EXTENSION"'
     register: mailbox_command
 
-  - lineinfile:
+  - name: set smtpd_recipient_restrictions in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^smtpd_recipient_restrictions\s*='
       line: 'smtpd_recipient_restrictions = permit_mynetworks, reject_rbl_client zen.spamhaus.org, permit_mx_backup, reject_unauth_destination'
     register: smtpd_recipient_restrictions
 
-  - lineinfile:
+  - name: set compatibility_level in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^compatibility_level\s*='
       line: 'compatibility_level = 2'
     register: compatibility_level
 
-  - lineinfile:
+  - name: set inet_interfaces to all in /etc/postfix/main.cf
+    lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^inet_interfaces\s*='
       line: 'inet_interfaces = all'
     register: inet_interfaces
 
-  - service: name=postfix enabled=yes
+  - name: enable postfix
+    service: name=postfix enabled=yes
 
-  - service: name=postfix state=restarted
+  - name: restart postfix
+    service: name=postfix state=restarted
     when: myhostname.changed or mydestination.changed or
           mailbox_command.changed or smtpd_recipient_restrictions.changed or
           compatibility_level.changed or inet_interfaces.changed
 
-  - copy:
+  - name: install /etc/cron.hourly/snitch
+    copy:
       dest: /etc/cron.hourly/snitch
       mode: 0755
       content: |
@@ -238,17 +266,20 @@
         curl '{{snitch_url}}' &> /dev/null
     when: snitch_url is defined
 
-  - copy:
+  - name: install relay-bounce-monitor.pl
+    copy:
       dest: /usr/local/bin/relay-bounce-monitor.pl
       src: relay-bounce-monitor.pl
       mode: 0755
 
-  - file:
+  - name: install /etc/cron.daily/relay-bounce-monitor
+    file:
       dest: /etc/cron.daily/relay-bounce-monitor
       state: link
       src: /usr/local/bin/relay-bounce-monitor.pl
 
-  - ini_file:
+  - name: configure fail2ban for polling
+    ini_file:
       dest: /etc/fail2ban/jail.local
       create: yes
       section: DEFAULT
@@ -256,7 +287,8 @@
       value: polling
     register: fail2ban_backend
 
-  - ini_file:
+  - name: enable fail2ban postfix jail
+    ini_file:
       dest: /etc/fail2ban/jail.local
       create: yes
       section: postfix
@@ -264,207 +296,253 @@
       value: true
     register: fail2ban_postfix_jail
 
-  - service: name=fail2ban enabled=yes state=restarted
+  - name: enable and restart fail2ban
+    service: name=fail2ban enabled=yes state=restarted
     when: fail2ban_backend.changed or fail2ban_postfix_jail.changed
 
-  - service: name=fail2ban enabled=yes state=started
+  - name: enable and start fail2ban
+    service: name=fail2ban enabled=yes state=started
     when: not (fail2ban_backend.changed or fail2ban_postfix_jail.changed)
 
-  - lineinfile:
+  - name: add logwatch filtering in secure.conf 1
+    lineinfile:
       dest: /etc/logwatch/conf/services/secure.conf
       create: yes
       line: '*Remove = New seat seat[0-9]+\.$'
 
-  - lineinfile:
+  - name: add logwatch filtering in secure.conf 2
+    lineinfile:
       dest: /etc/logwatch/conf/services/secure.conf
       line: '*Remove = Watching system buttons on /dev/input'
 
-  - lineinfile:
+  - name: add logwatch filtering in secure.conf 3
+    lineinfile:
       dest: /etc/logwatch/conf/services/secure.conf
       line: '*Remove = Cannot create session: Already running in a session'
 
-  - lineinfile:
+  - name: add logwatch filtering in secure.conf 4
+    lineinfile:
       dest: /etc/logwatch/conf/services/secure.conf
       line: '*Remove = echo BECOME-SUCCESS-'
 
-  - lineinfile:
+  - name: add logwatch filtering in rsyslogd.conf 1
+    lineinfile:
       dest: /etc/logwatch/conf/services/rsyslogd.conf
       create: yes
       line: "*OnlyService = rsyslogd"
       insertbefore: '\*Remove'
       firstmatch: yes
 
-  - lineinfile:
+  - name: add logwatch filtering in rsyslogd.conf 2
+    lineinfile:
       dest: /etc/logwatch/conf/services/rsyslogd.conf
       line: "*Remove = rsyslogd.s (user|group)id changed to"
 
-  - lineinfile:
+  - name: add logwatch filtering in rsyslogd.conf 3
+    lineinfile:
       dest: /etc/logwatch/conf/services/rsyslogd.conf
       line: "*Remove = : Acquired UNIX socket"
 
-  - lineinfile:
+  - name: add logwatch filtering in rsyslogd.conf 4
+    lineinfile:
       dest: /etc/logwatch/conf/services/rsyslogd.conf
       line: "*Remove = exiting on signal 15"
 
-  - lineinfile:
+  - name: add logwatch filtering in postfix.conf 1
+    lineinfile:
       dest: /etc/logwatch/conf/services/postfix.conf
       create: yes
       line: '*Remove = lost connection .* from unknown\[unknown\]'
 
-  - lineinfile:
+  - name: add logwatch filtering in postfix.conf 2
+    lineinfile:
       dest: /etc/logwatch/conf/services/postfix.conf
       line: '*Remove = synacor.*Blacklisted by Internal Reputation Service'
 
-  - lineinfile:
+  - name: add logwatch filtering in postfix.conf 3
+    lineinfile:
       dest: /etc/logwatch/conf/services/postfix.conf
       line: '*Remove = netidentity.*blocked using urbl\.hostedemail\.com'
 
-  - lineinfile:
+  - name: add logwatch filtering in postfix.conf 4
+    lineinfile:
       dest: /etc/logwatch/conf/services/postfix.conf
       line: '*Remove = magellanhealth.*poor reputation'
 
-  - lineinfile:
+  - name: add logwatch filtering in postfix.conf 5
+    lineinfile:
       dest: /etc/logwatch/conf/services/postfix.conf
       line: '*Remove = improper command pipelining'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 1
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       create: yes
       line: "*OnlyService = sshd"
       insertbefore: '\*Remove'
       firstmatch: yes
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 2
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Exiting on signal 15'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 3
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Server listening on .* port {{item}}'
     with_items: '{{relay_ssh_ports}}'
     when: relay_ssh_ports is defined
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 4
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Accepted.*xtK5LjLojcccD9XfFDng6QNPWijHnA8VGyeZxQPwCMo'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 5
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: "*Remove = session (opened|closed) for user root"
 
   # It's safe to ignore these when we only allow public key authentication.
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 6
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Failed password for'
     when: disable_sshd_password_authentication is defined and
       disable_sshd_password_authentication
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 7
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = check pass; user unknown'
 
   # It's safe to ignore these when we only allow public key authentication.
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 8
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = authentication failure'
     when: disable_sshd_password_authentication is defined and
       disable_sshd_password_authentication
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 9
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Invalid user'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 10
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Did not receive identification string'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 11
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Bad protocol version identification'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 12
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Connection (reset|closed) by .*preauth'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 13
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Received disconnect from'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 14
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Disconnected from'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 15
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = ignoring max retries'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 16
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = maximum authentication attempts exceeded'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 17
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Received signal 15; terminating'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 18
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Unable to negotiate with'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 19
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Change of username or service not allowed'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 20
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = Accepted publickey for'
 
-  - lineinfile:
+  - name: add logwatch filtering in sshd.conf 21
+    lineinfile:
       dest: /etc/logwatch/conf/services/sshd.conf
       line: '*Remove = pam_unix\(sshd:session\): session (opened|closed) for'
 
   # It's safe to ignore these when we only allow public key authentication.
-  - lineinfile:
+  - name: add logwatch filtering in pam_unix.conf
+    lineinfile:
       dest: /etc/logwatch/conf/services/pam_unix.conf
       create: yes
       line: '*Remove = sshd:auth.*(user unknown|authentication failure)'
     when: disable_sshd_password_authentication is defined and
       disable_sshd_password_authentication
 
-  - lineinfile:
+  - name: add logwatch filtering in audit.conf 1
+    lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*OnlyService = (kernel:( \[[ 0-9\.]+\])?)?\s*(type=[0-9]+\s*)?audit.*'
       create: yes
 
-  - lineinfile:
+  - name: add logwatch filtering in audit.conf 2
+    lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*Remove = res=success'
       
-  - lineinfile:
+  - name: add logwatch filtering in audit.conf 3
+    lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*Remove = op=login acct=\"(\(unknown\)|bin|root|ftp|operator)\" .*res=failed'
       
-  - lineinfile:
+  - name: add logwatch filtering in audit.conf 4
+    lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*Remove = op=PAM:bad_ident .*acct=\"\?\" .*res=failed'
       
-  - lineinfile:
+  - name: add logwatch filtering in audit.conf 5
+    lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*Remove = op=maxtries exceeded'
 
-  - lineinfile:
+  - name: add logwatch filtering in audit.conf 6
+    lineinfile:
       dest: /etc/logwatch/conf/services/audit.conf
       line: '*Remove = NETFILTER_CFG table=filter family=[0-9]+ entries=[0-9]+$'
 
-  - lineinfile:
+  - name: add logwatch filtering in sudo.conf 1
+    lineinfile:
       dest: /etc/logwatch/conf/services/sudo.conf
       line: '*OnlyService = sudo'
       create: yes
 
-  - lineinfile:
+  - name: add logwatch filtering in sudo.conf 2
+    lineinfile:
       dest: /etc/logwatch/conf/services/sudo.conf
       line: '*RemoveHeaders'
 
-  - lineinfile:
+  - name: add logwatch filtering in sudo.conf 3
+    lineinfile:
       dest: /etc/logwatch/conf/services/sudo.conf
       line: '*Remove = Cannot create session: Already running in a session'
 
@@ -484,13 +562,15 @@
       when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
     when: relay_ssh_ports is defined
 
-  - lineinfile:
+  - name: disable SSH password logins for root
+    lineinfile:
       dest: /etc/ssh/sshd_config
       regexp: '^PermitRootLogin\s+'
       line: 'PermitRootLogin prohibit-password'
     register: sshd_root_login
 
-  - lineinfile:
+  - name: disable SSH password authentication
+    lineinfile:
       dest: /etc/ssh/sshd_config
       regexp: '^PasswordAuthentication\s+'
       line: 'PasswordAuthentication no'
@@ -498,20 +578,25 @@
       disable_sshd_password_authentication
     register: sshd_password_authentication
     
-  - service: name=sshd state=reloaded
+  - name: reload sshd
+    service: name=sshd state=reloaded
     when: sshd_port.changed or sshd_root_login.changed or
       (sshd_password_authentication is defined and
       sshd_password_authentication.changed)
 
-  - ufw: state=enabled logging=off
+  - name: enable ufw and disable logging
+    ufw: state=enabled logging=off
 
   # On Ubuntu, `ufw enable` enables the systemd service, but on Fedora (at
   # least) it does not, so enable it explicitly just to be safe.
-  - service: name=ufw enabled=yes
+  - name: enable ufw service
+    service: name=ufw enabled=yes
 
-  - ufw: rule=allow port=smtp
+  - name: allow SMTP in ufw
+    ufw: rule=allow port=smtp
 
-  - ufw: rule=allow port={{item}}
+  - name: allow relay SSH ports in ufw
+    ufw: rule=allow port={{item}}
     with_items: '{{relay_ssh_ports}}'
     when: relay_ssh_ports is defined
 
