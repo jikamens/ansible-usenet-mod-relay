@@ -24,7 +24,7 @@ Prerequisites
 
 Before using the files in this directory, you need:
 
-* a Debian- or Fedora-based host to serve as the relay server
+* an Ubuntu or Fedora host to serve as the relay server
 
 * a static host name and IP addresses and PTR records for all of the
   host's public addresses (both IPv4 and IPv6, if any) pointing at its
@@ -66,7 +66,7 @@ scripts and understand what they do (and you should do that before
 running it!) so the details don't all need to be spelled out here.
 
 This playbook has been tested on Ubuntu 18.04.1, but I assume that
-it'll work just fine on any recent Debian-based distribution.
+it'll work just fine on any recent Ubuntu distribution.
 
 The playbook assumes that you are running the relay on a dedicated
 host or VM, not a shared host, so it has free rein to configure
