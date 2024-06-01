@@ -24,7 +24,7 @@ Prerequisites
 
 Before using the files in this directory, you need:
 
-* a Debian-based host to serve as the relay server
+* a Debian- or Fedora-based host to serve as the relay server
 
 * a static host name and IP addresses and PTR records for all of the
   host's public addresses (both IPv4 and IPv6, if any) pointing at its
