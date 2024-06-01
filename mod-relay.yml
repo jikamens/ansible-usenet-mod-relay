@@ -45,6 +45,7 @@
   - name: install Ubuntu-specific packages for mod-relay
     apt:
       name:
+      - bind9
       - fail2ban
       # For Ansible
       - python3
@@ -57,6 +58,7 @@
   - name: install Fedora-specific packages for mod-relay
     dnf:
       name:
+      - bind-chroot
       - fail2ban-server
       - fail2ban-sendmail
       # For Ansible
@@ -195,6 +197,27 @@
     command: newaliases
     when: root_alias.changed
 
+  # caching nameserver is required so Spamhaus accepts our DNS queries. See
+  # https://check.spamhaus.org/returnc/pub/107.191.50.163, or if that doesn't
+  # work, https://www.spamhaus.org/resource-hub/dnsbl/using-our-public-mirrors-check-your-return-codes-now./
+  - name: disable systemd-resolved
+    service: name=systemd-resolved enabled=no state=stopped
+  - name: configure /etc/resolv.conf
+    copy:
+      dest: /etc/resolv.conf
+      content: |
+        nameserver 127.0.0.1
+
+  - name: enable caching nameserver on Ubuntu
+    service: name=bind9 enabled=yes state=started
+    when: ansible_distribution == 'Ubuntu'
+    register: named_ubuntu
+
+  - name: enable caching nameserver on Fedora
+    service: name=named-chroot enabled=yes state=started
+    when: ansible_distribution == 'Fedora'
+    register: named_fedora
+
   - name: set alias_maps in /etc/postfix/main.cf
     lineinfile:
       dest: /etc/postfix/main.cf
@@ -227,7 +250,7 @@
     lineinfile:
       dest: /etc/postfix/main.cf
       regexp: '^smtpd_recipient_restrictions\s*='
-      line: 'smtpd_recipient_restrictions = permit_mynetworks, reject_rbl_client zen.spamhaus.org, permit_mx_backup, reject_unauth_destination'
+      line: 'smtpd_recipient_restrictions = permit_mynetworks, reject_rbl_client zen.spamhaus.org=127.0.0.[2..11], permit_mx_backup, reject_unauth_destination, warn_if_reject, reject_rbl_client zen.spamhaus.org=127.255.255.[1..255]'
     register: smtpd_recipient_restrictions
 
   - name: set compatibility_level in /etc/postfix/main.cf
@@ -251,7 +274,8 @@
     service: name=postfix state=restarted
     when: myhostname.changed or mydestination.changed or
           mailbox_command.changed or smtpd_recipient_restrictions.changed or
-          compatibility_level.changed or inet_interfaces.changed
+          compatibility_level.changed or inet_interfaces.changed or
+          named_ubuntu.changed or named_fedora.changed
 
   - name: install /etc/cron.hourly/snitch
     copy:
