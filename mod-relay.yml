@@ -62,9 +62,9 @@
       - fail2ban-server
       - fail2ban-sendmail
       # For Ansible
-      - python2
+      - python3
       - mailx
-      - yum-updatesd
+      - dnf-automatic
       # For relay-bounce-monitor.pl
       - perl-TimeDate
     when: ansible_distribution == 'Fedora'
@@ -81,22 +81,33 @@
       when: ansible_distribution=='Ubuntu'
     - dnf:
         name:
-        - python2-libselinux
-        - python2-policycoreutils
+        - python3-libselinux
+        - python3-policycoreutils
       when: ansible_distribution == 'Fedora'
     when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
 
   - block:
     - ini_file:
-        dest: /etc/yum/yum-updatesd.conf
-        section: main
-        option: run_interval
-        value: 86400  # daily
+        dest: /etc/dnf/automatic.conf
+        section: commands
+        option: apply_updates
+        value: yes
     - ini_file:
-        dest: /etc/yum/yum-updatesd.conf
+        dest: /etc/dnf/automatic.conf
         section: main
+        option: reboot
+        value: when-needed
+    - ini_file:
+        dest: /etc/dnf/automatic.conf
+        section: emitters
         option: emit_via
         value: email
+    - ini_file:
+        dest: /etc/dnf/automatic.conf
+        section: email
+        option: email_from
+        value: root
+    - service: name=dnf-automatic.timer enabled=yes
     when: ansible_distribution == 'Fedora'
 
   - name: lock mtm account
@@ -124,6 +135,45 @@
 
   - name: lock modupdate account
     user: name=modupdate password_lock=yes
+
+  - block:
+    - name: install /etc/selinux/mod-relay.te
+      copy:
+        dest: /etc/selinux/mod-relay.te
+        content: |
+          module mod-relay 1.4;
+
+          require {
+                  type postfix_smtpd_t;
+                  type user_home_t;
+                  class file { getattr lock open read };
+          }
+
+          #============= postfix_smtpd_t ==============
+          allow postfix_smtpd_t user_home_t:file { getattr lock open read };
+      register: selinux_te
+    - name: create /etc/selinux/mod-relay.mod
+      command: checkmodule -M -m -o /etc/selinux/mod-relay.mod /etc/selinux/mod-relay.te
+      when: selinux_te.changed
+      register: selinux_mod
+    - name: create /etc/selinux/mod-relay.pp
+      command: semodule_package -o /etc/selinux/mod-relay.pp -m /etc/selinux/mod-relay.mod
+      when: selinux_mod.changed
+      register: selinux_pp
+    - name: install mod-relay selinux policy
+      command: semodule -i /etc/selinux/mod-relay.pp
+      when: selinux_pp.changed
+      register: semodule
+    - name: fix selinux permissions on /home/modupdate
+      command: restorecon -R /home/modupdate
+      when: semodule.changed
+    when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
+
+  - name: make sure /home/modupdate is world-readable
+    file:
+      path: /home/modupdate
+      state: directory
+      mode: 0755
 
   - name: install /home/modupdate/.procmailrc
     copy:
