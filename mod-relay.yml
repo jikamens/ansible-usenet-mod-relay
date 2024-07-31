@@ -373,9 +373,19 @@
       value: true
     register: fail2ban_postfix_jail
 
+  - name: enable fail2ban sshd jail
+    ini_file:
+      dest: /etc/fail2ban/jail.local
+      create: yes
+      section: sshd
+      option: enabled
+      value: true
+    register: fail2ban_sshd_jail
+
   - name: enable and restart fail2ban
     service: name=fail2ban enabled=yes state=restarted
-    when: fail2ban_backend.changed or fail2ban_postfix_jail.changed
+    when: fail2ban_backend.changed or fail2ban_postfix_jail.changed or
+      fail2ban_sshd_jail.changed
 
   - name: enable and start fail2ban
     service: name=fail2ban enabled=yes state=started
