@@ -67,8 +67,8 @@ ln -f $new $target.new
 mkdir -p "$(dirname $old)"
 ln $target $old
 /usr/sbin/postalias $new
+chmod a+r $target.new $new.db
 mv -f $target.new $target
 mv -f $new.db $target.db
 rm -f $new
-chmod a+r $target $target.db
 diff -u $old $target | mail -s 'Installed aliases update' root
