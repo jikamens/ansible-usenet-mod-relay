@@ -719,4 +719,5 @@
     with_items: '{{relay_ssh_ports}}'
     when: relay_ssh_ports is defined
 
+- import_playbook: opendkim.yml
 - import_playbook: dnsbl-check/dnsbl-check.yml

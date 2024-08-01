@@ -1,0 +1,107 @@
+---
+- hosts: mod_relays
+  tasks:
+  - name: install opendkim packages
+    package:
+      name:
+      - opendkim
+      - opendkim-tools
+
+  - name: set key directory for Ubuntu
+    set_fact: keydir=/etc/dkimkeys
+    when: ansible_distribution == 'Ubuntu'
+
+  - name: set key directory for Fedora
+    set_fact: keydir=/etc/opendkim/keys
+    when: ansible_distribution == 'Fedora'
+
+  - name: check for key file
+    file:
+      path: '{{keydir}}/mod-relay.private'
+      state: file
+    register: keyfile
+    failed_when: false
+
+  - name: confirm key file exists
+    assert:
+      that: keyfile.state == 'file'
+      fail_msg: Run 'opendkim-genkey -b 1024 -d {{inventory_hostname}} -D
+        {{keydir}} -s mod-relay -v' and then publish the txt record to DNS
+
+  - name: correct permissions for signing key
+    file:
+      path: '{{keydir}}/mod-relay.private'
+      owner: opendkim
+      group: opendkim
+      mode: 0600
+
+  - name: Mode line in /etc/opendkim.conf
+    lineinfile:
+      path: /etc/opendkim.conf
+      regexp: ^\s*Mode\b
+      line: Mode sv
+    register: mode
+
+  - name: Socket line in /etc/opendkim.conf
+    lineinfile:
+      path: /etc/opendkim.conf
+      regexp: ^\s*Socket\b
+      line: Socket inet:8891@localhost
+    register: socket
+
+  - name: Domain line in /etc/opendkim.conf
+    lineinfile:
+      path: /etc/opendkim.conf
+      regexp: ^\s*Domain\b
+      line: Domain {{inventory_hostname}}
+    register: domain
+
+  - name: Selector line in /etc/opendkim.conf
+    lineinfile:
+      path: /etc/opendkim.conf
+      regexp: ^\s*Selector\b
+      line: Selector mod-relay
+    register: selector
+
+  - name: KeyFile line in /etc/opendkim.conf
+    lineinfile:
+      path: /etc/opendkim.conf
+      regexp: ^\s*KeyFile\b
+      line: KeyFile {{keydir}}/mod-relay.private
+    register: selector
+
+  - name: Restart opendkim if necessary
+    service: name=opendkim enabled=yes state=restarted
+    when: mode.changed or socket.changed or domain.changed or selector.changed
+      or keyfile.changed
+    register: restarted
+
+  - name: Make sure opendkim is running
+    service: name=opendkim enabled=yes state=started
+    when: not restarted.changed
+
+  - name: smtpd_milters line in /etc/postfix/main.cf
+    lineinfile:
+      path: /etc/postfix/main.cf
+      regexp: ^\s*smtpd_milters
+      line: smtpd_milters = inet:localhost:8891
+    register: smtpd_milters
+
+  - name: non_smtpd_milters line in /etc/postfix/main.cf
+    lineinfile:
+      path: /etc/postfix/main.cf
+      regexp: ^\s*non_smtpd_milters
+      line: non_smtpd_milters = $smtpd_milters
+    register: non_smtpd_milters
+
+  - name: milter_default_action line in /etc/postfix/main.cf
+    lineinfile:
+      path: /etc/postfix/main.cf
+      regexp: ^\s*milter_default_action
+      line: milter_default_action = accept
+    register: milter_default_action
+
+  - name: restart postfix
+    service: name=postfix state=restarted
+    when: smtpd_milters.changed or non_smtpd_milters.changed or
+      milter_default_action.changed
