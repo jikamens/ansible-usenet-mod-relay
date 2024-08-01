@@ -50,11 +50,11 @@ fi
 dos2unix $new
 
 lines=$(wc -l < $new)
-goodlines=$(egrep -c '^#|.*:.*(@|/dev/null)' $new)
+goodlines=$(grep -E -c '^#|.*:.*(@|/dev/null)' $new)
 if [ $lines != $goodlines ]; then
     echo "Line count mismatch: $lines total vs. $goodlines good" 1>&2
     echo "Bad lines:" 1>&2
-    egrep -v '^#|.*:.*@' $new
+    grep -E -v '^#|.*:.*@' $new
     exit 1
 fi
 
