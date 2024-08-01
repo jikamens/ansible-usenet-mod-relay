@@ -141,16 +141,43 @@
       copy:
         dest: /etc/selinux/mod-relay.te
         content: |
-          module mod-relay 1.4;
+          module mod-relay 1.5;
 
           require {
+                  # For access to /home/modupdate
                   type postfix_smtpd_t;
                   type user_home_t;
-                  class file { getattr lock open read };
+                  class file { getattr lock open read map execute execute_no_trans };
+
+                  # For procmail running postalias on new aliases file
+                  # (This also includes the "map", "execute", and
+                  # "execute_no_trans" attributes of the "class file" statement
+                  # above.)
+                  type postfix_etc_t;
+                  type procmail_t;
+                  type sysfs_t;
+                  type tmpfs_t;
+                  type io_uring_t;
+                  type postfix_master_exec_t;
+                  class io_uring sqpoll;
+                  class anon_inode { create map read write };
+                  class filesystem getattr;
+                  class dir { read search open getattr };
           }
 
           #============= postfix_smtpd_t ==============
           allow postfix_smtpd_t user_home_t:file { getattr lock open read };
+
+          allow procmail_t io_uring_t:anon_inode { create map read write };
+          allow procmail_t postfix_etc_t:dir { read search open getattr };
+          allow procmail_t postfix_etc_t:file { getattr open read };
+          allow procmail_t postfix_master_exec_t:file { getattr open read execute execute_no_trans };
+
+          #!!!! This avc can be allowed using the boolean 'domain_can_mmap_files'
+          allow procmail_t postfix_master_exec_t:file map;
+          allow procmail_t self:io_uring sqpoll;
+          allow procmail_t sysfs_t:file { open read };
+          allow procmail_t tmpfs_t:filesystem getattr;
       register: selinux_te
     - name: create /etc/selinux/mod-relay.mod
       command: checkmodule -M -m -o /etc/selinux/mod-relay.mod /etc/selinux/mod-relay.te
@@ -164,9 +191,12 @@
       command: semodule -i /etc/selinux/mod-relay.pp
       when: selinux_pp.changed
       register: semodule
-    - name: fix selinux permissions on /home/modupdate
-      command: restorecon -R /home/modupdate
-      when: semodule.changed
+    # Actually, I don't think this is necessary because we're not actually
+    # changing any of the file contexts in /home/modupdate, we're just changing
+    # postfix's permissions for them. So I'm commenting this out for now.
+    # - name: fix selinux permissions on /home/modupdate
+    #   command: restorecon -R /home/modupdate
+    #   when: semodule.changed
     when: 'getenforce.stdout is defined and "Enforcing" in getenforce.stdout'
 
   - name: make sure /home/modupdate is world-readable
