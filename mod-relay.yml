@@ -347,15 +347,17 @@
       line: 'inet_interfaces = all'
     register: inet_interfaces
 
-  - name: enable postfix
-    service: name=postfix enabled=yes
-
   - name: restart postfix
-    service: name=postfix state=restarted
+    service: name=postfix enabled=yes state=restarted
     when: myhostname.changed or mydestination.changed or
           mailbox_command.changed or smtpd_recipient_restrictions.changed or
           compatibility_level.changed or inet_interfaces.changed or
           named_ubuntu.changed or named_fedora.changed
+    register: restarted
+
+  - name: make sure postfix is running
+    service: name=postfix enabled=yes state=started
+    when: not restarted.changed
 
   - block:
     - name: install telnet for /etc/cron.hourly/snitch
