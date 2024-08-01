@@ -215,7 +215,7 @@
         :0 w
         * From: .*moderators-update@lists\.eyrie\.org
         * Subject: Update to news moderated group aliases
-        |$HOME/bin/modupdate.sh;
+        |$HOME/bin/modupdate.sh
 
         :0
         * Subject: Diff of updated moderated newsgroup aliases
