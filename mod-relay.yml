@@ -363,16 +363,10 @@
     - name: install telnet for /etc/cron.hourly/snitch
       package: name=telnet
     - name: install /etc/cron.hourly/snitch
-      copy:
+      template:
+        src: cron-snitch
         dest: /etc/cron.hourly/snitch
         mode: 0755
-        content: |
-          #!/bin/bash -e
-
-          touch /root/filesystem-is-ok
-          rm /root/filesystem-is-ok
-          sleep 1 | telnet localhost 25 2>/dev/null | grep -q -s Postfix
-          curl '{{snitch_url}}' &> /dev/null
     when: snitch_url is defined
 
   - name: install relay-bounce-monitor.pl

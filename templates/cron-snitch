@@ -1,0 +1,73 @@
+#!/bin/bash -e
+
+
+
+### Make sure the filesystem isn't read-only
+
+touch /root/filesystem-is-ok
+rm /root/filesystem-is-ok
+
+
+
+### Make sure email is working
+
+# Empirically determined that the longest gap we ever see between
+# successfully forwarded submissions is less than 7 hours.
+hours_back=7
+
+date_regexp_with_format() {
+    local hours="$1"
+    local format="$2"
+    now=$(date +%s)
+    then=$((now-60*60*hours))
+    echo $(date --date "@$then" +"$format")
+}
+
+date_regexp_oldstyle() {
+    local hours="$1"
+    date_regexp_with_format "$hours" "%b %e %H"
+}
+
+date_regexp_newstyle() {
+    local hours="$1"
+    date_regexp_with_format "$hours" "%Y-%m-%dT%H"
+}
+
+date_regexp_both() {
+    local hours="$1"
+    echo "$(date_regexp_oldstyle "$hours")|$(date_regexp_newstyle "$hours")"
+}
+
+date_regexp() {
+    local hours_back="$1"
+    local hour="0"
+    local regexp
+    while ((hour++ <= hours_back)); do
+	regexp="$regexp|$(date_regexp_both "$hour")"
+    done
+    echo "${regexp#|}"
+}
+
+# Have we relayed a message recently?
+
+if ! (zgrep -E "^($(date_regexp "$hours_back"))" $(ls -t /var/log/maillog* /var/log/mail.log* 2>/dev/null | head -2) | grep -v relay=local | grep -q -s status=sent); then
+    echo "No relayed messages in past $hours_back hours" 1>&2
+    exit 1
+fi
+
+# Are there DNS resolutions errors in the past hour?
+
+if [ "$(zgrep -E "^($(date_regexp "1"))" $(ls -t /var/log/maillog* /var/log/mail.log* 2>/dev/null | head -2) | grep -c "Host not found, try again")" -gt 10 ]; then
+    echo "There are a lot of recent DNS resolution failures" 1>&2
+    exit 1
+fi
+
+# Make sure Postfix is running
+
+sleep 1 | telnet localhost 25 2>/dev/null | grep -q -s Postfix
+
+
+
+### Trigger snitch if everything looks OK
+
+curl '{{snitch_url}}' &> /dev/null
