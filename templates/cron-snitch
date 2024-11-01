@@ -20,7 +20,7 @@ date_regexp_with_format() {
     local format="$2"
     now=$(date +%s)
     then=$((now-60*60*hours))
-    echo $(date --date "@$then" +"$format")
+    echo "$(date --date "@$then" +"$format")"
 }
 
 date_regexp_oldstyle() {
