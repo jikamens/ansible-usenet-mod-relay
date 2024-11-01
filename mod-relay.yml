@@ -32,7 +32,6 @@
     package:
       name:
       - perl
-      - postfix
       - procmail
       - sed
       - dos2unix
@@ -41,7 +40,13 @@
       - diffutils
       - logwatch
       - ufw
-      
+
+  # This needs to be separate so we can detect whether crond needs to
+  # be restarted.
+  - name: install postfix
+    package: name=postfix
+    register: postfix_installed
+
   - name: install Ubuntu-specific packages for mod-relay
     apt:
       name:
@@ -358,6 +363,14 @@
   - name: make sure postfix is running
     service: name=postfix enabled=yes state=started
     when: not restarted.changed
+    register: started
+
+  # If crond was started before postfix was installed and configured
+  # properly, then it may have decided on startup not to generate
+  # emails, and it won't change it mind without a restart.
+  - name: restart crond so email from it will work
+    service: name=crond state=restarted
+    when: postfix_installed.changed or restarted.changed or started.changed
 
   - block:
     - name: install telnet for /etc/cron.hourly/snitch
